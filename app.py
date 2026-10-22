@@ -489,3 +489,104 @@ st.caption(
     "FloodReady Neighbourhood Copilot | Educational prototype | "
     "Use official local emergency information."
 )
+
+# ---------------------------------------
+# AI Flood Preparedness Assistant
+# ---------------------------------------
+
+st.divider()
+st.header("🤖 AI Flood Preparedness Assistant")
+
+st.write(
+    "Ask questions about household preparedness, "
+    "emergency supplies, communication plans, and "
+    "community readiness."
+)
+
+st.warning(
+    "This AI does not monitor live floods or issue official warnings. "
+    "Always follow instructions from local emergency authorities."
+)
+
+if "ai_messages" not in st.session_state:
+    st.session_state.ai_messages = []
+
+# Display previous messages
+for message in st.session_state.ai_messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
+
+question = st.chat_input(
+    "Ask about flood preparedness..."
+)
+
+if question:
+    st.session_state.ai_messages.append({
+        "role": "user",
+        "content": question,
+    })
+
+    with st.chat_message("user"):
+        st.markdown(question)
+
+    try:
+        from openai import OpenAI
+
+        api_key = st.secrets.get("OPENAI_API_KEY", "")
+
+        if not api_key:
+            st.error(
+                "AI setup is incomplete. Add OPENAI_API_KEY "
+                "in your Streamlit app's Secrets settings."
+            )
+        else:
+            client = OpenAI(api_key=api_key)
+
+            system_instructions = """
+            You are FloodReady, a community flood preparedness assistant.
+
+            Help users prepare household emergency supplies, communication
+            plans, important documents, and community support arrangements.
+
+            Give clear, practical, calm answers.
+
+            Never claim to know current flood conditions or issue official
+            alerts unless verified live information has been provided.
+
+            Never invent weather reports, evacuation routes, or official
+            instructions. Tell users to consult their local emergency
+            authorities for current warnings.
+
+            Never advise anyone to walk or drive through floodwater.
+            Do not replace emergency services or professional responders.
+            """
+
+            with st.chat_message("assistant"):
+                with st.spinner("Preparing your answer..."):
+                    response = client.responses.create(
+                        model="gpt-6-astra",
+                        instructions=system_instructions,
+                        input=[
+                            {
+                                "role": message["role"],
+                                "content": message["content"],
+                            }
+                            for message in
+                            st.session_state.ai_messages
+                        ],
+                    )
+
+                    answer = response.output_text
+                    st.markdown(answer)
+
+            st.session_state.ai_messages.append({
+                "role": "assistant",
+                "content": answer,
+            })
+
+    except Exception as error:
+        st.error(
+            "The AI request failed. Check your API key, API access, "
+            "available credits, model access, and Streamlit logs."
+        )
+
